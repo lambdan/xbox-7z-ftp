@@ -1,12 +1,16 @@
-# pip3 install pyunpack patool
+# pip3 install pyunpack patool tqdm
 # usage: xbox7zftp.py game.7z
-# Tested with XBMC4Gamers and Windows 11 on HDD ready pack, 2022-08-11
+# Tested with XBMC4Gamers and Windows 11 on HDD ready pack, 2022-08-12
+
 
 # xbox settings, change these if you need to !!!!
+
 xbox_ip = '10.0.0.44'
 xbox_user = 'xbox'
 xbox_password = 'xbox'
 xbox_path = '/F/games/'
+
+#################################################
 #################################################
 
 from ftplib import FTP
@@ -39,11 +43,12 @@ def uploadThis(path):
 
 			with open(f,'rb') as fh:
 				myFTP.storbinary('STOR %s' % f, fh, blocksize=bs, callback=blockTransfered)
+		
 		elif os.path.isdir(f):	
 			myFTP.mkd(f)
 			myFTP.cwd(f)
 			uploadThis(f)
-			
+
 	myFTP.cwd('..')
 	os.chdir('..')
 
