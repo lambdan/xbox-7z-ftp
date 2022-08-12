@@ -18,7 +18,7 @@ from tqdm import tqdm
 from pyunpack import Archive
 import tempfile, shutil, os, random, sys
 
-bs = 200000
+bs = 128000
 
 files_transfered = 0
 
@@ -122,7 +122,13 @@ except Exception as e:
 
 pbar.close()
 myFTP.quit()
-print ("FTP complete!")
+print ("FTP complete")
+
+# make sure all files were transfered
+if files_transfered < folder_files:
+	print("Error! Not all files were transfered.")
+	print("This is probably due to your OS purging the temp folder")
+	sys.exit(1)
 
 # remove temp folder
 print ("Deleting temp folder...", end=" ", flush=True)
