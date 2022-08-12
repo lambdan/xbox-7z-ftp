@@ -18,21 +18,25 @@ from tqdm import tqdm
 from pyunpack import Archive
 import tempfile, shutil, os, random, sys
 
-bs = 10000
+bs = 200000
 
-xbox_free_space = False
-xbox_drive = False
+files_transfered = 0
 
 # ftp upload function from https://stackoverflow.com/a/27299745
 def uploadThis(path):
+	global files_transfered, pbar
 	files = os.listdir(path)
 	os.chdir(path)
 	
 	for f in files:
 		if os.path.isfile(f):
+
 			with open(f,'rb') as fh:
 				myFTP.storbinary('STOR %s' % f, fh, blocksize=bs, callback=blockTransfered)
-		
+			
+			files_transfered += 1
+			pbar.set_description(str(files_transfered) + "/" + str(folder_files) + " files")
+
 		elif os.path.isdir(f):	
 			myFTP.mkd(f)
 			myFTP.cwd(f)
@@ -41,9 +45,9 @@ def uploadThis(path):
 	myFTP.cwd('..')
 	os.chdir('..')
 
-def blockTransfered(block): # updates the progress bar
-	global pbar
-	pbar.update(bs)
+def blockTransfered(block):
+	# update bar with how many blocks we transfered
+	pbar.update(len(block)) 
 
 def folderStats(path):
 	size = 0
