@@ -6,62 +6,38 @@
 xbox_ip = '10.0.0.44'
 xbox_user = 'xbox'
 xbox_password = 'xbox'
-xbox_path = '/G/games/'
+xbox_path = '/F/games/'
 #################################################
 
 from ftplib import FTP
+from tqdm import tqdm
 from pyunpack import Archive
-import tempfile, shutil, os, random, sys, time, math
+import tempfile, shutil, os, random, sys
 
-folder_size = 0
-folder_files = 0
-total_uploaded = 0
-files_uploaded = 0
-current_path = []
+blockSize = 102400
+
+xbox_free_space = False
+xbox_drive = False
 
 # ftp upload function from https://stackoverflow.com/a/27299745
 def uploadThis(path):
-	global folder_size
-	global folder_files
-
-	global files_uploaded
-	global total_uploaded
-	
-	global current_path
-
 	files = os.listdir(path)
 	os.chdir(path)
-	current_path.append(path)
-
 	for f in files:
 		if os.path.isfile(f):
-			filesize = os.path.getsize(f)
-
-			
-			print("Uploading", "/".join(current_path[1:]) + "/" + f, "(" + prettySize(filesize) + ")", end="... ", flush=True)
-
 			with open(f,'rb') as fh:
-				myFTP.storbinary('STOR %s' % f, fh)
-
-			files_uploaded += 1
-			total_uploaded += filesize
-			
-			#size_progress = "[" + prettySize(total_uploaded) + "/" + prettySize(folder_size) + "]"
-			#files_progress = "[" + str(files_uploaded) + "/" + str(folder_files) + " files]"
-			#total_progress = "[" + percentage(total_uploaded, folder_size) + " " + percentage(files_uploaded, folder_files) + "]"
-			progress = percentage(total_uploaded+files_uploaded, folder_size+folder_files) + " (" + prettySize(total_uploaded) + "/" + prettySize(folder_size) + ", " + str(files_uploaded) + "/" + str(folder_files) + " files)"
-			# this is kinda weird but its so we end up with 100% at the end
-			print("OK\n", progress, end=" ", flush=True)
-
+				myFTP.storbinary('STOR %s' % f, fh, blocksize=blockSize, callback=blockTransfered)
 		elif os.path.isdir(f):	
 			#print("Making dir", f)
 			myFTP.mkd(f)
 			myFTP.cwd(f)
 			uploadThis(f)
-
 	myFTP.cwd('..')
 	os.chdir('..')
-	current_path.pop() # remove last path from current_path
+
+def blockTransfered(block): # updates the progress bar
+	global pbar
+	pbar.update(blockSize)
 
 def folderStats(path):
 	size = 0
@@ -72,22 +48,6 @@ def folderStats(path):
 			fp = os.path.join(path, f)
 			size += os.path.getsize(fp)
 	return size, filecount
-
-def prettySize(z):
-	KB = z/1024
-	MB = z/(1024*1024)
-	GB = z/(1024*1024*1024)
-	if GB >= 1:
-		return str( round(GB, 1) ) + " GB"
-	elif MB >= 1:
-		return str( round(MB, 1) ) + " MB"
-	elif KB >= 1:
-		return str( round(KB, 1) ) + " KB"
-	else:
-		return str(z) + " B" # bytes
-
-def percentage(part, whole):
-	return str( math.floor( (part/whole) * 100) ) + "%"
 
 # get input file
 try:
@@ -102,53 +62,59 @@ if not os.path.isfile(infile):
 	sys.exit(1)
 
 print("Destination:", xbox_ip, xbox_path)
-print("Processing", infile)
+print("Game:", infile)
+print()
+
+# Test xbox connection
+print("Testing FTP connection to Xbox...", end=" ", flush=True)
+try:
+	myFTP = FTP(xbox_ip, xbox_user, xbox_password, timeout=3)
+	print("ok")
+except Exception as e:
+	print()
+	print("FTP error:", e, "Exiting...")
+	sys.exit(1)
 
 # create temp folder to store extracted files in
 temp_folder = tempfile.mkdtemp()
-print ("Temp folder:", temp_folder)
 
 # extract
-print ("Unzipping to temp folder...", end="", flush=True)
+print ("Unzipping game to temp folder...")
 Archive(infile).extractall(temp_folder)
-print ("OK")
 
-
-
-print ("Checking size of game...", end="", flush=True)
+# get folder size and file count
 folder_size, folder_files = folderStats(temp_folder)
-print(" it's " + prettySize(folder_size) + " and has " + str(folder_files) + " files.")
 
-# upload over ftp
-print ("Starting FTP upload:")
-myFTP = FTP(xbox_ip, xbox_user, xbox_password)
-myFTP.cwd(xbox_path) # cd to xbox_path on the xbox
+# cd on server (xbox) to games folder
+myFTP.cwd(xbox_path) 
 
 # if game is not in its own folder, make a folder for it 
 if os.path.isfile(os.path.join(temp_folder, "default.xbe")):
 	print("default.xbe detected in root of temp folder. We need to make a folder for the game.")
-	game_name = input("Enter game folder name: ")
+	game_name = input("Enter name for game folder: ")
 	myFTP.mkd(game_name)
 	myFTP.cwd(game_name)
 
-time_started = time.time()
+
+print ("Starting FTP transfer")
+
+pbar = tqdm(total=folder_size, unit="B", unit_scale=True, unit_divisor=1024)
+
 try:
 	uploadThis(temp_folder)
-except:
-	print("Error occurred during upload! Deleting temp folder and then exiting.")
-	shutil.rmtree(temp_folder)
+except Exception as e:
+	print("Error occurred during FTP transfer!")
+	print("Error message:", e)
+	myFTP.quit()
+	input("Press any key to exit")
 	sys.exit(1)
 
-time_done = time.time()
-print ("All files uploaded!")
-
-time_taken = time_done - time_started
-speed = total_uploaded/time_taken
-print("Uploaded", prettySize(total_uploaded), "in", int(time_taken), "seconds", "(" + str(round(speed/(1024*1024), 1)) + " MB/s)")
+pbar.close()
+myFTP.quit()
+print ("FTP complete!")
 
 # remove temp folder
-print ("Deleting temp folder...", end="", flush=True)
+print ("Deleting temp folder...")
 shutil.rmtree(temp_folder)
-print(" OK")
 
 print ("All done :)")

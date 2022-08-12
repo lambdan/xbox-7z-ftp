@@ -6,6 +6,7 @@ Python script to make it easier to transfer Xbox games that are zipped up (like 
 - Removes unzipped files after they've been transfered
 - Prevents transfering game root straight to Games folder root
 	- (Basically makes sure you always have `/F/Games/game/default.xbe` instead of accidentally getting (`/F/Games/default.xbe`)
+- Verifies connection to Xbox before doing anything
 
 ## Caveats
 
@@ -20,5 +21,3 @@ Python script to make it easier to transfer Xbox games that are zipped up (like 
 - Run `python xbox7zftp.py game.7z` and wait :)
 
 Tested with Xbox running XBMC4Gamers and Windows 11 PC with Python 3.10.5 but I don't see any reason why it wouldn't work on other OSes or Xbox Dashboards.
-
-![Screenshot](https://djsimg.org/sPcV.png)
