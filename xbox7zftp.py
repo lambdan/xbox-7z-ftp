@@ -18,29 +18,18 @@ from tqdm import tqdm
 from pyunpack import Archive
 import tempfile, shutil, os, random, sys
 
-bs = 1000
-maxBS = 102400
+bs = 10000
 
 xbox_free_space = False
 xbox_drive = False
 
 # ftp upload function from https://stackoverflow.com/a/27299745
 def uploadThis(path):
-	global bs
-
 	files = os.listdir(path)
 	os.chdir(path)
 	
 	for f in files:
 		if os.path.isfile(f):
-			
-			# dynamic blocksize based on filesize
-			fs = os.path.getsize(f)
-			if fs > maxBS:
-				bs = maxBS
-			else:
-				bs = fs
-
 			with open(f,'rb') as fh:
 				myFTP.storbinary('STOR %s' % f, fh, blocksize=bs, callback=blockTransfered)
 		
@@ -54,7 +43,6 @@ def uploadThis(path):
 
 def blockTransfered(block): # updates the progress bar
 	global pbar
-	global bs
 	pbar.update(bs)
 
 def folderStats(path):
@@ -97,8 +85,9 @@ except Exception as e:
 temp_folder = tempfile.mkdtemp()
 
 # extract
-print ("Unzipping game to temp folder...")
+print ("Unzipping game to temp folder...", end=" ", flush=True)
 Archive(infile).extractall(temp_folder)
+print("ok")
 
 # get folder size and file count
 folder_size, folder_files = folderStats(temp_folder)
@@ -116,7 +105,7 @@ if os.path.isfile(os.path.join(temp_folder, "default.xbe")):
 
 print ("Starting FTP transfer")
 
-pbar = tqdm(total=folder_size, unit="B", unit_scale=True, unit_divisor=1024)
+pbar = tqdm(total=folder_size, unit="B", unit_scale=True, unit_divisor=1000)
 
 try:
 	uploadThis(temp_folder)
@@ -132,7 +121,8 @@ myFTP.quit()
 print ("FTP complete!")
 
 # remove temp folder
-print ("Deleting temp folder...")
+print ("Deleting temp folder...", end=" ", flush=True)
 shutil.rmtree(temp_folder)
+print("ok")
 
 print ("All done :)")
