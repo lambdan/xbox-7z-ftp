@@ -1,1 +1,5 @@
 *.7z
+*.zip
+
+# ignore all folders (which likely contain games)
+*/

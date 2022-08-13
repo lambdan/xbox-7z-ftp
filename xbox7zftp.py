@@ -79,6 +79,7 @@ print()
 print("Testing FTP connection to Xbox...", end=" ", flush=True)
 try:
 	myFTP = FTP(xbox_ip, xbox_user, xbox_password, timeout=3)
+	myFTP.getwelcome()
 	print("ok")
 except Exception as e:
 	print()
